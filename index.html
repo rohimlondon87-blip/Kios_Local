@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kasir Androidku</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Mencegah highlight biru saat di-tap di Android */
+        * { -webkit-tap-highlight-color: transparent; }
+        body { background-color: #f3f4f6; padding-bottom: 80px; }
+        
+        /* Animasi sederhana */
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body class="text-gray-800 antialiased">
+
+    <!-- Header -->
+    <header class="bg-emerald-600 text-white p-4 shadow-md sticky top-0 z-20 flex justify-between items-center">
+        <h1 class="text-xl font-bold"><i class="fas fa-store mr-2"></i> Toko Saya</h1>
+        <button onclick="toggleSettings()" class="text-white hover:text-emerald-200">
+            <i class="fas fa-cog text-xl"></i>
+        </button>
+    </header>
+
+    <!-- Modal Pengaturan -->
+    <div id="settingsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6 fade-in">
+            <h2 class="text-xl font-bold mb-4">Pengaturan Sistem</h2>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">URL Google Apps Script</label>
+                <input type="text" id="scriptUrlInput" placeholder="Paste URL Web App di sini..." 
+                       class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                <p class="text-xs text-gray-500 mt-2">Dapatkan URL ini setelah melakukan Deploy di Google Apps Script.</p>
+            </div>
+            <div class="flex justify-end space-x-3 mt-6">
+                <button onclick="toggleSettings()" class="px-4 py-2 text-gray-600 bg-gray-200 rounded-lg font-medium">Batal</button>
+                <button onclick="saveSettings()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kategori Produk (Opsional, bisa di scroll horizontal) -->
+    <div class="flex overflow-x-auto p-4 space-x-3 bg-white shadow-sm scrollbar-hide">
+        <button class="px-4 py-2 bg-emerald-100 text-emerald-800 rounded-full text-sm font-bold whitespace-nowrap">Semua</button>
+        <button class="px-4 py-2 bg-gray-100 text-gray-600 rounded-full text-sm font-medium whitespace-nowrap">Makanan</button>
+        <button class="px-4 py-2 bg-gray-100 text-gray-600 rounded-full text-sm font-medium whitespace-nowrap">Minuman</button>
+    </div>
+
+    <!-- Daftar Produk -->
+    <main class="p-4 grid grid-cols-2 gap-4" id="productList">
+        <!-- Produk akan dirender lewat JavaScript -->
+    </main>
+
+    <!-- Cart Bottom Bar (Sticky di bawah) -->
+    <div id="cartBar" class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-4 flex justify-between items-center z-30 transition-transform transform translate-y-full">
+        <div>
+            <p class="text-xs text-gray-500 font-medium">Total Pesanan</p>
+            <p class="text-lg font-bold text-emerald-600" id="cartTotalMain">Rp 0</p>
+        </div>
+        <button onclick="toggleCartModal()" class="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center shadow-lg active:scale-95 transition-transform">
+            <i class="fas fa-shopping-cart mr-2"></i> Lanjut (<span id="cartCount">0</span>)
+        </button>
+    </div>
+
+    <!-- Modal Keranjang (Cart) -->
+    <div id="cartModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center fade-in">
+        <div class="bg-white w-full sm:w-96 rounded-t-2xl sm:rounded-xl max-h-[80vh] flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-2xl sm:rounded-t-xl">
+                <h2 class="text-lg font-bold">Detail Pesanan</h2>
+                <button onclick="toggleCartModal()" class="text-gray-500 text-xl p-2"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="p-4 overflow-y-auto flex-1" id="cartItemsList">
+                <!-- Item keranjang dirender di sini -->
+            </div>
+
+            <div class="p-4 border-t bg-gray-50">
+                <div class="flex justify-between font-bold text-lg mb-4">
+                    <span>Total</span>
+                    <span class="text-emerald-600" id="cartTotalModal">Rp 0</span>
+                </div>
+                <button onclick="prosesCheckout()" id="btnCheckout" class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-lg shadow-md active:bg-emerald-700 transition-colors flex justify-center items-center">
+                    Bayar & Simpan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data Produk Dummy
+        const products = [
+            { id: 1, name: "Nasi Goreng Spesial", price: 25000, image: "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=500&h=400&fit=crop" },
+            { id: 2, name: "Mie Goreng Telur", price: 15000, image: "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?w=500&h=400&fit=crop" },
+            { id: 3, name: "Ayam Geprek", price: 20000, image: "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=500&h=400&fit=crop" },
+            { id: 4, name: "Es Teh Manis", price: 5000, image: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=500&h=400&fit=crop" },
+            { id: 5, name: "Kopi Susu Gula Aren", price: 18000, image: "https://images.unsplash.com/photo-1599305090598-fe179d501227?w=500&h=400&fit=crop" },
+            { id: 6, name: "Air Mineral", price: 4000, image: "https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=500&h=400&fit=crop" }
+        ];
+
+        let cart = [];
+
+        // Format Uang Rupiah
+        const formatRp = (angka) => {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
+        };
+
+        // Render Produk ke Layar
+        function renderProducts() {
+            const list = document.getElementById('productList');
+            list.innerHTML = '';
+            products.forEach(p => {
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-xl shadow-sm overflow-hidden flex flex-col active:scale-95 transition-transform cursor-pointer";
+                card.onclick = () => addToCart(p);
+                card.innerHTML = `
+                    <img src="${p.image}" alt="${p.name}" class="w-full h-32 object-cover">
+                    <div class="p-3 flex flex-col flex-1 justify-between">
+                        <h3 class="text-sm font-bold text-gray-800 leading-tight mb-1">${p.name}</h3>
+                        <p class="text-emerald-600 font-bold text-sm">${formatRp(p.price)}</p>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        // Tambah ke Keranjang
+        function addToCart(product) {
+            const existing = cart.find(item => item.id === product.id);
+            if (existing) {
+                existing.qty += 1;
+            } else {
+                cart.push({ ...product, qty: 1 });
+            }
+            updateCartUI();
+        }
+
+        // Ubah Kuantitas di Keranjang
+        function changeQty(id, delta) {
+            const item = cart.find(i => i.id === id);
+            if (item) {
+                item.qty += delta;
+                if (item.qty <= 0) {
+                    cart = cart.filter(i => i.id !== id);
+                }
+                updateCartUI();
+            }
+        }
+
+        // Update Tampilan Keranjang
+        function updateCartUI() {
+            const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
+            const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+            // Update Bottom Bar
+            document.getElementById('cartCount').innerText = totalQty;
+            document.getElementById('cartTotalMain').innerText = formatRp(totalPrice);
+            document.getElementById('cartTotalModal').innerText = formatRp(totalPrice);
+
+            const cartBar = document.getElementById('cartBar');
+            if (totalQty > 0) {
+                cartBar.classList.remove('translate-y-full');
+            } else {
+                cartBar.classList.add('translate-y-full');
+                document.getElementById('cartModal').classList.add('hidden'); // Tutup modal jika kosong
+            }
+
+            // Render isi modal keranjang
+            const cartList = document.getElementById('cartItemsList');
+            cartList.innerHTML = '';
+            
+            if(cart.length === 0) {
+                cartList.innerHTML = '<p class="text-center text-gray-400 mt-10">Keranjang kosong</p>';
+                return;
+            }
+
+            cart.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "flex justify-between items-center py-3 border-b border-gray-100";
+                div.innerHTML = `
+                    <div class="flex-1">
+                        <h4 class="font-bold text-sm">${item.name}</h4>
+                        <p class="text-emerald-600 text-sm font-medium">${formatRp(item.price)}</p>
+                    </div>
+                    <div class="flex items-center space-x-3 bg-gray-100 rounded-lg p-1">
+                        <button onclick="changeQty(${item.id}, -1)" class="w-8 h-8 flex items-center justify-center bg-white rounded shadow-sm text-red-500 font-bold">-</button>
+                        <span class="font-bold w-4 text-center text-sm">${item.qty}</span>
+                        <button onclick="changeQty(${item.id}, 1)" class="w-8 h-8 flex items-center justify-center bg-white rounded shadow-sm text-emerald-600 font-bold">+</button>
+                    </div>
+                `;
+                cartList.appendChild(div);
+            });
+        }
+
+        // Modal Toggle
+        function toggleCartModal() {
+            if (cart.length > 0) {
+                const modal = document.getElementById('cartModal');
+                modal.classList.toggle('hidden');
+            }
+        }
+
+        function toggleSettings() {
+            const modal = document.getElementById('settingsModal');
+            modal.classList.toggle('hidden');
+            if (!modal.classList.contains('hidden')) {
+                document.getElementById('scriptUrlInput').value = localStorage.getItem('gas_url') || 'https://script.google.com/macros/s/AKfycbz19TgcWisCo1XgMSpCAhAoncF1oxh7mB5iR91GTg2e4k0_--B7mWEPHWbxjYM344PY/exec';
+            }
+        }
+
+        function saveSettings() {
+            const url = document.getElementById('scriptUrlInput').value;
+            localStorage.setItem('gas_url', url);
+            alert("Pengaturan URL berhasil disimpan!");
+            toggleSettings();
+        }
+
+        // Proses Checkout (Kirim ke Google Sheets)
+        async function prosesCheckout() {
+            const gasUrl = localStorage.getItem('gas_url') || 'https://script.google.com/macros/s/AKfycbz19TgcWisCo1XgMSpCAhAoncF1oxh7mB5iR91GTg2e4k0_--B7mWEPHWbxjYM344PY/exec';
+            if (!gasUrl) {
+                alert("Mohon isi URL Google Apps Script di menu Pengaturan (ikon gir) terlebih dahulu!");
+                toggleSettings();
+                return;
+            }
+
+            const btn = document.getElementById('btnCheckout');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Memproses...';
+            btn.disabled = true;
+
+            const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            
+            // Format data barang untuk disimpan ke excel/sheets
+            const itemsSummary = cart.map(item => `${item.name} (x${item.qty})`).join(', ');
+
+            const payload = {
+                orderId: "ORD-" + new Date().getTime(),
+                items: itemsSummary,
+                total: total
+            };
+
+            try {
+                // Menggunakan mode no-cors untuk menghindari error CORS dari Google
+                await fetch(gasUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                // Karena no-cors, fetch akan selalu dianggap sukses (meskipun body response tidak bisa dibaca)
+                alert("Transaksi Berhasil Disimpan ke Google Sheets!");
+                cart = []; // Kosongkan keranjang
+                updateCartUI();
+                toggleCartModal();
+            } catch (error) {
+                alert("Terjadi kesalahan koneksi internet.");
+            } finally {
+                btn.innerHTML = 'Bayar & Simpan';
+                btn.disabled = false;
+            }
+        }
+
+        // Inisialisasi awal
+        window.onload = () => {
+            renderProducts();
+        };
+    </script>
+</body>
+</html>
