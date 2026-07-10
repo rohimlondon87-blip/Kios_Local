@@ -6,6 +6,8 @@
     <title>Kasir & Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tambahkan library Scanner Barcode -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         * { -webkit-tap-highlight-color: transparent; }
         body { background-color: #f3f4f6; padding-bottom: 80px; }
@@ -34,6 +36,21 @@
         </div>
     </header>
 
+    <!-- Modal Scanner Barcode -->
+    <div id="scannerModal" class="hidden fixed inset-0 bg-black bg-opacity-80 z-[80] flex items-center justify-center p-4 fade-in">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center bg-gray-50">
+                <h2 class="text-lg font-bold" id="scannerTitle">Scan Barcode</h2>
+                <button onclick="stopScanner()" class="text-gray-500 text-xl p-2"><i class="fas fa-times"></i></button>
+            </div>
+            <!-- Area Kamera -->
+            <div id="reader" class="w-full bg-black min-h-[300px]"></div>
+            <div class="p-4 bg-gray-50 text-center text-sm text-gray-600 font-medium">
+                Posisikan barcode di dalam kotak
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Pengaturan -->
     <div id="settingsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6 fade-in">
@@ -51,6 +68,13 @@
 
     <!-- ================= VIEW KASIR ================= -->
     <div id="kasirView">
+        <!-- Tombol Scan Barcode Kasir -->
+        <div class="p-4 pb-0">
+            <button onclick="startScanner('kasir')" class="w-full bg-emerald-100 text-emerald-700 border-2 border-emerald-500 border-dashed py-3 rounded-xl font-bold flex justify-center items-center active:bg-emerald-200 transition-colors">
+                <i class="fas fa-barcode text-xl mr-2"></i> Scan Barcode Produk
+            </button>
+        </div>
+
         <main class="p-4 grid grid-cols-2 gap-4" id="productList">
             <!-- Produk dirender di sini -->
         </main>
@@ -95,6 +119,13 @@
                 <h2 class="text-lg font-bold mb-4 text-emerald-700"><i class="fas fa-plus-circle mr-2"></i>Tambah Produk Baru</h2>
                 <div class="space-y-3">
                     <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase">Barcode / SKU</label>
+                        <div class="flex space-x-2">
+                            <input type="text" id="addBarcode" placeholder="Scan/Ketik Barcode" class="w-full border-b border-gray-300 py-2 focus:border-emerald-500 outline-none">
+                            <button onclick="startScanner('admin')" class="bg-gray-800 text-white px-4 rounded-lg"><i class="fas fa-qrcode"></i></button>
+                        </div>
+                    </div>
+                    <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase">Nama Produk</label>
                         <input type="text" id="addName" placeholder="Cth: Nasi Padang" class="w-full border-b border-gray-300 py-2 focus:border-emerald-500 outline-none">
                     </div>
@@ -127,6 +158,8 @@
         let products = [];
         let cart = [];
         let currentView = 'kasir';
+        let html5QrcodeScanner = null;
+        let scannerMode = 'kasir'; // 'kasir' atau 'admin'
 
         const formatRp = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
         
@@ -184,9 +217,14 @@
             products.forEach(p => {
                 const imgUrl = p.image || 'https://via.placeholder.com/150?text=No+Image';
                 const card = document.createElement('div');
-                card.className = "bg-white rounded-xl shadow-sm overflow-hidden flex flex-col active:scale-95 transition-transform cursor-pointer";
+                card.className = "bg-white rounded-xl shadow-sm overflow-hidden flex flex-col active:scale-95 transition-transform cursor-pointer relative";
                 card.onclick = () => addToCart(p);
+                
+                // Badge barcode (opsional)
+                const barcodeBadge = p.barcode ? `<div class="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-[10px] px-2 py-1 rounded-full"><i class="fas fa-barcode"></i></div>` : '';
+
                 card.innerHTML = `
+                    ${barcodeBadge}
                     <img src="${imgUrl}" alt="${p.name}" class="w-full h-32 object-cover" onerror="this.src='https://via.placeholder.com/150?text=Error'">
                     <div class="p-3 flex flex-col flex-1 justify-between">
                         <h3 class="text-sm font-bold text-gray-800 leading-tight mb-1">${p.name}</h3>
@@ -297,6 +335,7 @@
                         <div>
                             <h4 class="font-bold text-sm text-gray-800">${p.name}</h4>
                             <p class="text-emerald-600 text-xs font-bold">${formatRp(p.price)}</p>
+                            ${p.barcode ? `<p class="text-[10px] text-gray-400"><i class="fas fa-barcode mr-1"></i>${p.barcode}</p>` : ''}
                         </div>
                     </div>
                     <button onclick="hapusProduk('${p.id}')" class="w-8 h-8 bg-red-100 text-red-500 rounded-full flex items-center justify-center active:bg-red-200">
@@ -308,6 +347,7 @@
         }
 
         async function tambahProduk() {
+            const barcode = document.getElementById('addBarcode').value;
             const name = document.getElementById('addName').value;
             const price = document.getElementById('addPrice').value;
             const image = document.getElementById('addImage').value;
@@ -319,6 +359,7 @@
 
             const payload = {
                 action: 'add_product',
+                barcode: barcode,
                 name: name,
                 price: parseInt(price),
                 image: image
@@ -326,6 +367,7 @@
 
             const res = await postData(payload, "Menyimpan Produk...");
             if(res && res.status === 'success') {
+                document.getElementById('addBarcode').value = '';
                 document.getElementById('addName').value = '';
                 document.getElementById('addPrice').value = '';
                 document.getElementById('addImage').value = '';
@@ -394,6 +436,70 @@
             localStorage.setItem('gas_url', url);
             toggleSettings();
             fetchProducts();
+        }
+
+        // ================= SCANNER FUNCTIONS =================
+
+        function startScanner(mode) {
+            scannerMode = mode;
+            document.getElementById('scannerModal').classList.remove('hidden');
+            document.getElementById('scannerTitle').innerText = mode === 'kasir' ? 'Scan Produk' : 'Scan Barcode Baru';
+
+            if (!html5QrcodeScanner) {
+                html5QrcodeScanner = new Html5Qrcode("reader");
+            }
+
+            // Menggunakan kamera belakang
+            html5QrcodeScanner.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 150 } },
+                onScanSuccess,
+                onScanFailure
+            ).catch(err => {
+                alert("Gagal mengakses kamera. Pastikan Anda memberikan izin kamera pada browser.");
+                stopScanner();
+            });
+        }
+
+        function stopScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
+                    document.getElementById('scannerModal').classList.add('hidden');
+                }).catch(err => {
+                    document.getElementById('scannerModal').classList.add('hidden');
+                });
+            } else {
+                document.getElementById('scannerModal').classList.add('hidden');
+            }
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            // Hentikan scanner setelah berhasil
+            stopScanner();
+            
+            // Mainkan suara beep (opsional, menggunakan audio bawaan browser)
+            try {
+                const audio = new Audio('https://www.soundjay.com/button/beep-07.wav');
+                audio.play();
+            } catch(e) {}
+
+            if (scannerMode === 'admin') {
+                // Jika di menu Admin, masukkan teks ke kolom input barcode
+                document.getElementById('addBarcode').value = decodedText;
+            } else if (scannerMode === 'kasir') {
+                // Jika di menu Kasir, cari produk berdasarkan barcode
+                const product = products.find(p => p.barcode === decodedText);
+                if (product) {
+                    addToCart(product);
+                    alert(`Ditambahkan: ${product.name}`);
+                } else {
+                    alert("Produk dengan barcode tersebut tidak ditemukan!");
+                }
+            }
+        }
+
+        function onScanFailure(error) {
+            // Scanner berjalan terus mencari barcode, abaikan error ini
         }
 
         window.onload = () => {
