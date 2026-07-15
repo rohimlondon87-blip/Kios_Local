@@ -744,15 +744,4 @@
     </script>
 </body>
 </html>
-```eof
 
-### Apa yang baru di pembaruan ini?
-
-1.  **Kotak "Ambil Foto Produk":** Di menu "Produk & Stok", input teks "URL Gambar" sudah dihilangkan. Gantinya, ada kotak dengan ikon kamera.
-2.  **Kamera Langsung Terbuka:** Jika kotak kamera itu ditekan dari HP Android, sistem akan langsung menawarkan opsi **"Kamera"** (untuk jepret langsung) atau **"Galeri"** (jika ingin pilih foto lama). Ini sangat praktis!
-3.  **Kompresi Otomatis (Penting!):** Karena hasil jepretan kamera HP jaman sekarang filenya besar (bisa 5MB+), jika langsung dikirim ke Google Sheets, aplikasinya akan *hang* atau *error*. Kode di atas otomatis **mengecilkan (compress) resolusi gambar** menjadi maksimal 300x300 pixel sebelum dikirim. Gambar tetap terlihat jelas di layar kasir, namun ukurannya menjadi sangat ringan sehingga pengiriman data tetap cepat.
-4.  **Preview Gambar:** Setelah difoto, gambar akan langsung muncul di kotak tersebut sebagai pratinjau (*preview*) sebelum Anda menekan "Simpan Produk".
-
-*(Catatan: Anda tidak perlu mengubah script di Google Sheets `Code.gs` untuk fitur ini, karena struktur penyimpanannya tetap sama, hanya isi format gambarnya saja yang berubah).*
-
-Silakan *copy-paste* kode `index.html` ini ke GitHub Anda dan langsung tes jepret produk dari HP!
