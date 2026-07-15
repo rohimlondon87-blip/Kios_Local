@@ -134,7 +134,7 @@
         <button onclick="switchTab('admin')" id="tabAdmin" class="flex flex-col items-center hover:text-emerald-600"><i class="fas fa-boxes text-lg mb-0.5"></i>Produk & Stok</button>
     </nav>
 
-    <!-- Floating Cart Bar (Hanya muncul di tab Kasir jika ada barang) -->
+    <!-- Floating Cart Bar -->
     <div id="cartBar" class="fixed bottom-[60px] left-3 right-3 bg-gray-900 text-white p-3 rounded-xl shadow-xl flex justify-between items-center z-20 transition-all transform translate-y-32 hidden">
         <div class="flex items-center space-x-3">
             <span class="bg-emerald-500 text-white font-bold w-7 h-7 rounded-full flex items-center justify-center text-xs" id="cartCount">0</span>
@@ -144,7 +144,7 @@
             </div>
         </div>
         <button onclick="openPaymentModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center shadow active:scale-95">
-            Bayar Sekarang <i class="fas fa-chevron-right ml-1"></i>
+            Bayar <i class="fas fa-chevron-right ml-1"></i>
         </button>
     </div>
 
@@ -273,7 +273,6 @@
                 const img = new Image();
                 img.src = e.target.result;
                 img.onload = function() {
-                    // Compress Image to reduce size before sending to Google Sheets
                     const canvas = document.createElement('canvas');
                     const MAX_WIDTH = 300;
                     const MAX_HEIGHT = 300;
@@ -296,10 +295,9 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
                     
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7); // 70% quality JPEG
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7); 
                     
                     document.getElementById('addBase64Image').value = dataUrl;
-                    
                     const preview = document.getElementById('imagePreview');
                     preview.src = dataUrl;
                     preview.classList.remove('hidden');
@@ -315,7 +313,6 @@
             document.getElementById('imagePreview').classList.add('hidden');
             document.getElementById('cameraPlaceholder').classList.remove('hidden');
         }
-
 
         // ================= INTIALIZE & FETCH =================
         async function fetchProducts() {
@@ -544,7 +541,6 @@
                 closePaymentModal();
                 showReceipt(currentOrderData);
                 
-                // Kurangi stok lokal tanpa harus fetch ulang
                 cart.forEach(item => {
                     const p = products.find(x => x.id === item.id);
                     if (p) p.stock -= item.qty;
@@ -650,7 +646,7 @@
             const name = document.getElementById('addName').value;
             const price = document.getElementById('addPrice').value;
             const stock = document.getElementById('addStock').value;
-            const imageBase64 = document.getElementById('addBase64Image').value; // Get the Base64 image
+            const imageBase64 = document.getElementById('addBase64Image').value;
             
             if (!name || !price || !stock) return alert("Nama, Harga, dan Stok wajib diisi!");
 
@@ -661,13 +657,13 @@
                 category: document.getElementById('addCategory').value || 'Umum',
                 price: Number(price),
                 stock: Number(stock),
-                image: imageBase64 // Send the Base64 string instead of URL
+                image: imageBase64
             };
 
             const res = await postData(payload, "Menyimpan Produk...");
             if (res && res.status === 'success') {
                 document.querySelectorAll('#adminView input[type="text"], #adminView input[type="number"]').forEach(i => i.value = '');
-                resetImageInput(); // Clear the image preview
+                resetImageInput();
                 await fetchProducts();
                 alert("Produk Berhasil Disimpan!");
             }
@@ -744,4 +740,3 @@
     </script>
 </body>
 </html>
-
